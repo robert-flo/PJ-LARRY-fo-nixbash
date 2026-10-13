@@ -5,6 +5,15 @@
 # Skip for non-interactive shells
 [[ $- != *i* ]] && return
 
+# Layer mode: install.sh puts this file at ~/.local/share/nixbash/bashrc and sources it
+# from the end of Omarchy's ~/.bashrc. Omarchy then keeps the prompt (starship), history,
+# completions, zoxide/fzf init and the aliases it already defines (ls, lt, c, h, ff, cd).
+if [[ ${BASH_SOURCE[0]} == */nixbash/bashrc ]]; then
+  NIXBASH_LAYER=1
+else
+  NIXBASH_LAYER=
+fi
+
 ######################################################################
 # PATH SETUP
 ######################################################################
@@ -137,10 +146,12 @@ alias root='cd /'
 alias tmp='cd /tmp'
 
 # File listing
-alias l='ls -CFh'
-alias ll='ls -alFh'
-alias la='ls -Ah'
-alias lt='ls -lath'
+if [[ -z $NIXBASH_LAYER ]]; then
+  alias l='ls -CFh'
+  alias ll='ls -alFh'
+  alias la='ls -Ah'
+  alias lt='ls -lath'
+fi
 
 # File operations
 alias cls='clear && ls'
@@ -151,16 +162,18 @@ alias tarx='tar -xvzf'
 alias tarc='tar -cvzf'
 
 # Productivity
-alias c='clear'
+if [[ -z $NIXBASH_LAYER ]]; then
+  alias c='clear'
+  alias h='history | tail -20'
+  alias vi='nano'
+fi
 alias e='exit'
 alias sb='source ~/.bashrc'
 alias bm='nano ~/.bashrc && source ~/.bashrc'
-alias h='history | tail -20'
 alias hg='history | grep'
 alias now='date +"%T"'
 alias nowtime='date +"%d-%m-%Y %T"'
 alias reload='source ~/.bashrc'
-alias vi='nano'
 svi() {
   if command -v sudo >/dev/null 2>&1; then
     sudo nano "$@"
@@ -209,7 +222,7 @@ alias ts='tailscale status'
 alias tsip='tailscale ip -4'
 
 # Find shortcuts
-alias ff='find . -name'
+[[ -z $NIXBASH_LAYER ]] && alias ff='find . -name'
 
 ######################################################################
 # ENHANCED TOOLS (aliases set if installed)
@@ -218,11 +231,13 @@ alias ff='find . -name'
 if command -v batcat >/dev/null 2>&1; then
     alias cat='batcat --style=plain --paging=never'
     alias bat='batcat'
-elif command -v bat >/dev/null 2>&1; then
+elif [[ -z $NIXBASH_LAYER ]] && command -v bat >/dev/null 2>&1; then
     alias cat='bat --style=plain --paging=never'
 fi
 
-if command -v eza >/dev/null 2>&1; then
+if [[ -n $NIXBASH_LAYER ]]; then
+    command -v eza >/dev/null 2>&1 && alias ll='eza -la --icons --group-directories-first'
+elif command -v eza >/dev/null 2>&1; then
     alias ls='eza --icons --group-directories-first'
     alias ll='eza -la --icons --group-directories-first'
     alias lt='eza --tree --icons --level=2'
@@ -253,6 +268,7 @@ alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 
+if [[ -z $NIXBASH_LAYER ]]; then
 ######################################################################
 # HISTORY & SHELL OPTIONS
 ######################################################################
@@ -302,6 +318,7 @@ xterm*|rxvt*)
     PS1="\[\e]0;\u@\h: \w\a\]$PS1"
     ;;
 esac
+fi
 
 ######################################################################
 # FUNCTIONS
@@ -477,11 +494,12 @@ print_system_banner() {
     echo ""
 }
 
-# Show banner on interactive login
-if [ -t 1 ] && [ -z "$NIXBASH_NO_BANNER" ]; then
+# Show banner on interactive login (opt-in with NIXBASH_BANNER=1 in layer mode)
+if [ -t 1 ] && [ -z "$NIXBASH_NO_BANNER" ] && { [ -z "$NIXBASH_LAYER" ] || [ -n "${NIXBASH_BANNER:-}" ]; }; then
     print_system_banner
 fi
 
+if [[ -z $NIXBASH_LAYER ]]; then
 ######################################################################
 # ZOXIDE (smart cd) - if installed
 ######################################################################
@@ -506,6 +524,7 @@ if ! shopt -oq posix; then
     elif [ -f /etc/bash_completion ]; then
         . /etc/bash_completion
     fi
+fi
 fi
 
 ######################################################################
