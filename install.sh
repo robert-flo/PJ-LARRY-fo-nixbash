@@ -2,17 +2,28 @@
 # NixBash Installer - Fast Linux Server Shell Environment
 # https://github.com/nixfred/nixbash
 #
-# Usage: curl -sL https://raw.githubusercontent.com/nixfred/nixbash/main/install.sh | bash && source ~/.bashrc
+# Usage: curl -sL https://raw.githubusercontent.com/robert-flo/PJ-LARRY-fo-nixbash/personal/install.sh | bash && source ~/.bashrc
 #
 # Fully non-interactive. No prompts. Safe for scripted installs.
 
 set -euo pipefail
 
-NIXBASH_REPO="https://raw.githubusercontent.com/nixfred/nixbash/main"
+NIXBASH_REPO="${NIXBASH_REPO:-https://raw.githubusercontent.com/robert-flo/PJ-LARRY-fo-nixbash/personal}"
 BASHRC_URL="${NIXBASH_REPO}/.bashrc"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_FILE="$HOME/.bashrc.pre-nixbash.${TIMESTAMP}"
 START_TIME=$(date +%s)
+
+# Omarchy owns ~/.bashrc (env-bootstrap + default/bash/rc + user block), so there
+# NixBash installs as a layer sourced from the end of it instead of replacing it.
+OMARCHY_RC="${OMARCHY_PATH:-/usr/share/omarchy}/default/bash/rc"
+NIXBASH_LAYER="${XDG_DATA_HOME:-$HOME/.local/share}/nixbash/bashrc"
+NIXBASH_SOURCE_LINE='[[ -r "${XDG_DATA_HOME:-$HOME/.local/share}/nixbash/bashrc" ]] && source "${XDG_DATA_HOME:-$HOME/.local/share}/nixbash/bashrc"'
+if [ -z "${NIXBASH_REPLACE:-}" ] && [ -r "$OMARCHY_RC" ] && grep -q 'default/bash/rc' "$HOME/.bashrc" 2>/dev/null; then
+    INSTALL_MODE="omarchy"
+else
+    INSTALL_MODE="replace"
+fi
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -35,6 +46,7 @@ echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "  ${DIM}Installing shell environment for $(whoami)@$(hostname)${RESET}"
 echo -e "  ${DIM}$(date '+%Y-%m-%d %H:%M:%S %Z')${RESET}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+[ "$INSTALL_MODE" = "omarchy" ] && echo -e "  ${DIM}Omarchy detected: layering over ~/.bashrc instead of replacing it (NIXBASH_REPLACE=1 to override)${RESET}"
 
 # ── Step 1: Backup existing .bashrc ──────────────────────────────────
 step 1 "Backup"
@@ -219,9 +231,22 @@ TMP_BASHRC=$(mktemp)
 if curl -fsSL "$BASHRC_URL" -o "$TMP_BASHRC"; then
     BASHRC_SIZE=$(wc -c < "$TMP_BASHRC")
     [ "$BASHRC_SIZE" -gt 0 ] || fail "Downloaded .bashrc is empty"
-    mv "$TMP_BASHRC" "$HOME/.bashrc"
-    ALIAS_COUNT=$(grep -c "^alias " "$HOME/.bashrc" 2>/dev/null || true)
-    ok "NixBash .bashrc installed (${BASHRC_SIZE} bytes, ${ALIAS_COUNT} aliases)"
+    if [ "$INSTALL_MODE" = "omarchy" ]; then
+        mkdir -p "$(dirname "$NIXBASH_LAYER")"
+        mv "$TMP_BASHRC" "$NIXBASH_LAYER"
+        if grep -qF "nixbash/bashrc" "$HOME/.bashrc"; then
+            ok "~/.bashrc already sources the NixBash layer"
+        else
+            printf '\n# NixBash: server aliases and functions layered over Omarchy (Omarchy keeps prompt, history and its aliases)\n%s\n' "$NIXBASH_SOURCE_LINE" >> "$HOME/.bashrc"
+            ok "Added the NixBash source line to the end of ~/.bashrc"
+        fi
+        ALIAS_COUNT=$(grep -c "^alias " "$NIXBASH_LAYER" 2>/dev/null || true)
+        ok "NixBash layer installed at ${NIXBASH_LAYER} (${BASHRC_SIZE} bytes, ${ALIAS_COUNT} aliases)"
+    else
+        mv "$TMP_BASHRC" "$HOME/.bashrc"
+        ALIAS_COUNT=$(grep -c "^alias " "$HOME/.bashrc" 2>/dev/null || true)
+        ok "NixBash .bashrc installed (${BASHRC_SIZE} bytes, ${ALIAS_COUNT} aliases)"
+    fi
 else
     rm -f "$TMP_BASHRC"
     fail "Failed to download .bashrc from ${BASHRC_URL}"

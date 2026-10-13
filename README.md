@@ -131,6 +131,26 @@ Add machine-specific config (SSH aliases, API keys, custom paths) to:
 
 This file is sourced automatically and won't be overwritten by NixBash updates.
 
+## Omarchy
+
+On [Omarchy](https://omarchy.org), `~/.bashrc` belongs to Omarchy (it sources `default/bash/rc` and keeps your own block below it). When `install.sh` detects that, it does not replace `~/.bashrc`. Instead it:
+
+- installs the NixBash file at `~/.local/share/nixbash/bashrc`,
+- appends one line to the end of `~/.bashrc` that sources it (only once),
+- still backs up `~/.bashrc` to `~/.bashrc.pre-nixbash.<timestamp>`.
+
+In that layer mode Omarchy keeps the prompt (starship), history settings, completions, zoxide/fzf setup and the aliases it already defines (`ls`, `lt`, `c`, `h`, `ff`, `cd`); `cat` and `vi` are left alone too. You get the rest: `si`, `aa`, `extract`, `mkcd`, `listening`, `push`/`pull`, `duh`, `gitc`, the monitoring and network aliases, and `ll`. The login banner is off; turn it on with `export NIXBASH_BANNER=1` in `~/.bashrc_local`.
+
+Install from this fork:
+
+```bash
+curl -sL https://raw.githubusercontent.com/robert-flo/PJ-LARRY-fo-nixbash/personal/install.sh | bash && source ~/.bashrc
+```
+
+`NIXBASH_REPO` overrides where the `.bashrc` is downloaded from, and `NIXBASH_REPLACE=1` forces the classic behavior (replace `~/.bashrc`) on Omarchy.
+
+Uninstall the layer: delete the `nixbash/bashrc` source line from `~/.bashrc` and `rm -r ~/.local/share/nixbash`.
+
 ## Suppress Banner
 
 ```bash
