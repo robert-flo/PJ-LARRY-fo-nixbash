@@ -126,6 +126,9 @@ alias temp='vcgencmd measure_temp 2>/dev/null || ([ -f /sys/class/thermal/therma
 alias ccc='claude --dangerously-skip-permissions'
 alias cccc='claude --dangerously-skip-permissions -c'
 
+# Domina (robertOS): agy en el vault; los hooks robertos-* cargan el banner
+alias domina='(cd "$HOME/Work/tries/pj-domina/rf-vault" && "$HOME/.local/bin/agy")'
+
 # Quick launchers
 alias p='cd ~/Projects'
 # FIX: renamed `1` to `pinglong` -- single-char alias with 100M pings is chaotic neutral
